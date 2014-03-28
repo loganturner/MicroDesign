@@ -39,7 +39,16 @@ START   	ORG     $000000
 MAIN    	JSR     INIT_DUART
             LEA     BANNER(PC),A4
             BSR     HEADING
-            BRA     GETLINE
+            BRA     MENU
+
+****************************************************************
+* Menu
+*
+MENU        EQU     *
+            LEA     MENUTEXT(PC),A4
+MENU1       BSR     HEADING
+            BSR     GETNUM
+            BRA     MENU
 
 ****************************************************************
 * Initialize DUART
@@ -78,12 +87,14 @@ INITDHAR    EQU     *
 
 GCHARHAR    EQU         *
 	        MOVE.L      D1,-(SP)
+	        MOVE.L      A1,-(SP)
             LEA         DUART,A0
 Input_poll  MOVE.B      SRA(A0),D1
             BTST        #RxRDY,D1
             BEQ         Input_poll
             MOVE.B      RBA(A0),D0
-            MOVE.L      (SP)+, D1
+            MOVE.L      (SP)+,A0
+            MOVE.L      (SP)+,D1
             BSR         PCHAR       Echo Input
 	        RTS
 
@@ -92,7 +103,7 @@ GCHARSIM    EQU         *
 	        MOVE.L	#05, D0
 	        TRAP		#15		
 	        MOVE.B	D1, D0
-	        MOVE.L	(SP)+, D1
+	        MOVE.L	(SP)+,D1
 	        BSR         PCHAR       Echo Input
 	        RTS
 
@@ -113,8 +124,8 @@ PCHARSIM    EQU         *
 	        MOVE.B	D0, D1	
 	        MOVE.L	#06, D0	
 	        TRAP		#15		
-	        MOVE.L	(SP)+, D1	
-	        MOVE.L	(SP)+, D0
+	        MOVE.L	(SP)+,D1	
+	        MOVE.L	(SP)+,D0
 	        RTS
 
 * Display the string pointed at by A4
@@ -153,17 +164,40 @@ GETLINE     EQU         *
 GETL1       BSR         GCHAR
             BRA         GETL1
 
+* Get a single numeric character between 1 and 4 from user
+
+GETNUM      EQU         *
+            MOVEM.L     A4,-(A7)
+            LEA         NUMPROMPT(PC),A4
+            BSR         PSTRING         Print prompt character
+            MOVEM.L     (A7)+,A4
+GETN1       BSR         GCHAR
+            CMP.B       #$31,D0
+            BLT         GETN1
+            CMP.B       #$34,D0
+            BGT         GETN1
+            BSR         NEWLINE
+            RTS
+
 ****************************************************************
 * Strings and Constants in ROM
 *
 BANNER      DC.B    '-- babyMON, a monitor for a 68k-based microcomputer --',0,0
 CRLF        DC.B    CR,LF,0
 PROMPT      DC.B    '> ',0
+NUMPROMPT   DC.B    '#> ',0
+MENUTEXT    DC.B    'Enter the number of one of the following options:',CR,LF,'1. View or modify a register',CR,LF,'2. View or modify a memory location',CR,LF,'3. Upload an S-record',CR,LF,'4. Jump to a memory location',0,0
+OPNOTIMP1   DC.B    '(Option 1 not yet implemented)',0,0
+OPNOTIMP2   DC.B    '(Option 2 not yet implemented)',0,0
+OPNOTIMP3   DC.B    '(Option 3 not yet implemented)',0,0
+OPNOTIMP4   DC.B    '(Option 4 not yet implemented)',0,0
 GCHAR       EQU     GCHARHAR
 PCHAR       EQU     PCHARHAR
 INIT_DUART  EQU     INITDHAR
 
         	END     MAIN
+
+
 
 
 
