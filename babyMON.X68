@@ -5,9 +5,7 @@
 * Description      : monitor program for a 68k-based microcomputer
 *-----------------------------------------------------------
 
-* Note, most DUART configurations are ignorant of UDS/LDS 
-* and thus are only active on odd addresses (since the lower 
-* data lines are usually run to the DUART data bus)
+SIM         EQU     0   ; 0 = hardware, 1 = simulation
 
 ; *******************************************************************
 ; Constants:	(Note the offsets to account for no A0)
@@ -25,11 +23,11 @@ TxRDY		EQU		2	Transmit ready bit position
 BAUD		EQU	  	$CC   baud rate value = 19,200 baud
 ; *******************************************************************
 
-SUPER_STACK EQU     $80800	; MUST BE A VALID RAM LOCATION
+STACK       EQU     $80800	; MUST BE A VALID RAM LOCATION
 
 
 START   	ORG     $000000
-        	DC.L    SUPER_STACK
+        	DC.L    STACK
         	DC.L    MAIN
 
         	ORG     $000100        
@@ -37,12 +35,18 @@ MAIN    	JSR     INIT_DUART
 LOOP        JSR     MENU
 		    JMP     LOOP
         
-MENU        JSR     GET_CHAR
-            MOVE.B  D2,D0
-            JSR     PUT_CHAR
+MENU        JSR     GCHAR
+            JSR     PCHAR
 		    RTS
 
-INIT_DUART  LEA	  	DUART,A0		A0 points to base DUART address
+INIT_DUART  EQU     *
+            IF.B SIM <NE> #00 THEN         when simulating, turn off keyboard echo
+	        MOVE.B	#$00,D1
+	        MOVE.B	#12,D0
+	        TRAP		#15
+	        ELSE
+
+            LEA	  	    DUART,A0		A0 points to base DUART address
 
 ; Software reset:
       	    MOVE.B	    #$30,CRA(A0)	Reset TxA
@@ -60,22 +64,38 @@ INIT_DUART  LEA	  	DUART,A0		A0 points to base DUART address
       	    MOVE.B	#$07,MR2A(A0)	
 
       	    MOVE.B	#$05,CRA(A0)	enable Tx and Rx
+      	    
+      	    ENDI
       	    RTS
 *
-*           Input a single character from port A (polled mode) into D2
+*           Input a single character from port A (polled mode) into D0
 *      	    
-GET_CHAR    MOVE.L      D1,-(SP)
+GCHAR	    IF.B SIM <EQ> #0 THEN.L
+	
+	        MOVE.L      D1,-(SP)
             LEA         DUART,A0
 Input_poll  MOVE.B      SRA(A0),D1
             BTST        #RxRDY,D1
             BEQ         Input_poll
-            MOVE.B      RBA(A0),D2
+            MOVE.B      RBA(A0),D0
             MOVE.L      (SP)+, D1
-            RTS
+
+	        ELSE
+	
+	        MOVE.L	D1, -(SP)	
+	        MOVE.L	#05, D0
+	        TRAP		#15		
+	        MOVE.B	D1, D0
+	        MOVE.L	(SP)+, D1
+	
+	        ENDI
+	        RTS
 *
 *           Transmit a single character in D0 from Port A (polled mode)
 *
-PUT_CHAR    MOVE.L      D1,-(SP)
+PCHAR	    IF.B SIM <EQ> #0 THEN.L
+	
+	        MOVE.L      D1,-(SP)
             LEA         DUART,A0
 Output_poll MOVE.B      SRA(A0),D1
             BTST        #TxRDY,D1
@@ -83,8 +103,22 @@ Output_poll MOVE.B      SRA(A0),D1
             MOVE.B      D0,TBA(A0)
             MOVE.L      (SP)+,D1
             RTS
+	
+	        ELSE
+	
+	        MOVE.L	D0, -(SP)	; Task
+	        MOVE.L	D1, -(SP)	;Char to display
+	        MOVE.B	D0, D1	
+	        MOVE.L	#06, D0	
+	        TRAP		#15		
+	        MOVE.L	(SP)+, D1	
+	        MOVE.L	(SP)+, D0	
+	
+	        ENDI
+	        RTS
 
         	END     MAIN
+
 
 
 
