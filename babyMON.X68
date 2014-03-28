@@ -5,12 +5,10 @@
 * Description      : monitor program for a 68k-based microcomputer
 *-----------------------------------------------------------
 
-* Note, most DUART configurations are ignorant of UDS/LDS 
-* and thus are only active on odd addresses (since the lower 
-* data lines are usually run to the DUART data bus)
 
-; *******************************************************************
-; Constants:	(Note the offsets to account for no A0)
+****************************************************************
+* Assembly Constants:	(Note the offsets to account for no A0)
+*
 DUART   	EQU	    $100000     loaded in A0 when needed, regs are offsets
 MR1A   	    EQU   	1	Mode Register1
 MR2A  	    EQU   	1	points here after MR1A is set
@@ -23,26 +21,37 @@ ACR		    EQU	  	9	Auxiliary control register
 RxRDY		EQU		0	Recieve ready bit position
 TxRDY		EQU		2	Transmit ready bit position
 BAUD		EQU	  	$CC   baud rate value = 19,200 baud
-; *******************************************************************
+*
+CR          EQU     $0D     Carriage Return
+LF          EQU     $0A     Line Feed
 
-SUPER_STACK EQU     $80800	; MUST BE A VALID RAM LOCATION
+****************************************************************
+* Main Program
+*
+STACK       EQU     $80800	; MUST BE A VALID RAM LOCATION
 
 
 START   	ORG     $000000
-        	DC.L    SUPER_STACK
+        	DC.L    STACK
         	DC.L    MAIN
 
         	ORG     $000100        
 MAIN    	JSR     INIT_DUART
-LOOP        JSR     MENU
-		    JMP     LOOP
-        
-MENU        JSR     GET_CHAR
-            MOVE.B  D2,D0
-            JSR     PUT_CHAR
-		    RTS
+            LEA     BANNER(PC),A4
+            BSR     HEADING
+            BRA     GETLINE
 
-INIT_DUART  LEA	  	DUART,A0		A0 points to base DUART address
+****************************************************************
+* Initialize DUART
+*
+INITDSIM    EQU     *
+	        MOVE.B	#$00,D1
+	        MOVE.B	#12,D0
+	        TRAP		#15
+	        RTS
+
+INITDHAR    EQU     *
+            LEA	  	    DUART,A0		A0 points to base DUART address
 
 ; Software reset:
       	    MOVE.B	    #$30,CRA(A0)	Reset TxA
@@ -61,21 +70,35 @@ INIT_DUART  LEA	  	DUART,A0		A0 points to base DUART address
 
       	    MOVE.B	#$05,CRA(A0)	enable Tx and Rx
       	    RTS
-*
-*           Input a single character from port A (polled mode) into D2
-*      	    
-GET_CHAR    MOVE.L      D1,-(SP)
+      	    
+****************************************************************
+* I/O Subroutines
+
+* Input a single character from port A (polled mode) into D0
+
+GCHARHAR    EQU         *
+	        MOVE.L      D1,-(SP)
             LEA         DUART,A0
 Input_poll  MOVE.B      SRA(A0),D1
             BTST        #RxRDY,D1
             BEQ         Input_poll
-            MOVE.B      RBA(A0),D2
+            MOVE.B      RBA(A0),D0
             MOVE.L      (SP)+, D1
-            RTS
-*
-*           Transmit a single character in D0 from Port A (polled mode)
-*
-PUT_CHAR    MOVE.L      D1,-(SP)
+            BSR         PCHAR       Echo Input
+	        RTS
+
+GCHARSIM    EQU         *
+	        MOVE.L	D1, -(SP)	
+	        MOVE.L	#05, D0
+	        TRAP		#15		
+	        MOVE.B	D1, D0
+	        MOVE.L	(SP)+, D1
+	        BSR         PCHAR       Echo Input
+	        RTS
+
+* Transmit a single character in D0 from Port A (polled mode)
+
+PCHARHAR    MOVE.L      D1,-(SP)
             LEA         DUART,A0
 Output_poll MOVE.B      SRA(A0),D1
             BTST        #TxRDY,D1
@@ -83,8 +106,67 @@ Output_poll MOVE.B      SRA(A0),D1
             MOVE.B      D0,TBA(A0)
             MOVE.L      (SP)+,D1
             RTS
+	
+PCHARSIM    EQU         *
+	        MOVE.L	D0, -(SP)	; Task
+	        MOVE.L	D1, -(SP)	;Char to display
+	        MOVE.B	D0, D1	
+	        MOVE.L	#06, D0	
+	        TRAP		#15		
+	        MOVE.L	(SP)+, D1	
+	        MOVE.L	(SP)+, D0
+	        RTS
+
+* Display the string pointed at by A4
+
+PSTRING     EQU         *
+            MOVE.L      D0,-(A7)
+PS1         MOVE.B      (A4)+,D0
+            BEQ.S       PS2
+            BSR         PCHAR
+            BRA         PS1
+PS2         MOVE.L      (A7)+,D0
+            RTS
+
+* Move cursor to start of newline
+
+NEWLINE     EQU         *
+            MOVEM.L     A4,-(A7)
+            LEA         CRLF(PC),A4
+            BSR         PSTRING
+            MOVEM.L     (A7)+,A4
+            RTS
+
+* Print string with newline
+
+HEADING     BSR         NEWLINE
+            BSR         PSTRING
+            BRA         NEWLINE
+
+* Get line of input from user
+
+GETLINE     EQU         *
+            MOVEM.L     A4,-(A7)
+            LEA         PROMPT(PC),A4
+            BSR         PSTRING         Print prompt character
+            MOVEM.L     (A7)+,A4
+GETL1       BSR         GCHAR
+            BRA         GETL1
+
+****************************************************************
+* Strings and Constants in ROM
+*
+BANNER      DC.B    '-- babyMON, a monitor for a 68k-based microcomputer --',0,0
+CRLF        DC.B    CR,LF,0
+PROMPT      DC.B    '> ',0
+GCHAR       EQU     GCHARHAR
+PCHAR       EQU     PCHARHAR
+INIT_DUART  EQU     INITDHAR
 
         	END     MAIN
+
+
+
 
 
 
