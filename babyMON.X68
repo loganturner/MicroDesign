@@ -7,8 +7,9 @@
 
 SIM         EQU     0   ; 0 = hardware, 1 = simulation
 
-; *******************************************************************
-; Constants:	(Note the offsets to account for no A0)
+****************************************************************
+* Assembly Constants:	(Note the offsets to account for no A0)
+*
 DUART   	EQU	    $100000     loaded in A0 when needed, regs are offsets
 MR1A   	    EQU   	1	Mode Register1
 MR2A  	    EQU   	1	points here after MR1A is set
@@ -21,8 +22,13 @@ ACR		    EQU	  	9	Auxiliary control register
 RxRDY		EQU		0	Recieve ready bit position
 TxRDY		EQU		2	Transmit ready bit position
 BAUD		EQU	  	$CC   baud rate value = 19,200 baud
-; *******************************************************************
+*
+CR          EQU     $0D     Carriage Return
+LF          EQU     $0A     Line Feed
 
+****************************************************************
+* Main Program
+*
 STACK       EQU     $80800	; MUST BE A VALID RAM LOCATION
 
 
@@ -32,13 +38,13 @@ START   	ORG     $000000
 
         	ORG     $000100        
 MAIN    	JSR     INIT_DUART
-LOOP        JSR     MENU
-		    JMP     LOOP
-        
-MENU        JSR     GCHAR
-            JSR     PCHAR
-		    RTS
+            LEA     BANNER(PC),A4
+            BSR     HEADING
+            BRA     GETLINE
 
+****************************************************************
+* Initialize DUART
+*
 INIT_DUART  EQU     *
             IF.B SIM <NE> #00 THEN         when simulating, turn off keyboard echo
 	        MOVE.B	#$00,D1
@@ -67,9 +73,12 @@ INIT_DUART  EQU     *
       	    
       	    ENDI
       	    RTS
-*
-*           Input a single character from port A (polled mode) into D0
-*      	    
+      	    
+****************************************************************
+* I/O Subroutines
+
+* Input a single character from port A (polled mode) into D0
+
 GCHAR	    IF.B SIM <EQ> #0 THEN.L
 	
 	        MOVE.L      D1,-(SP)
@@ -89,10 +98,11 @@ Input_poll  MOVE.B      SRA(A0),D1
 	        MOVE.L	(SP)+, D1
 	
 	        ENDI
+	        BSR         PCHAR       Echo Input
 	        RTS
-*
-*           Transmit a single character in D0 from Port A (polled mode)
-*
+
+* Transmit a single character in D0 from Port A (polled mode)
+
 PCHAR	    IF.B SIM <EQ> #0 THEN.L
 	
 	        MOVE.L      D1,-(SP)
@@ -117,7 +127,51 @@ Output_poll MOVE.B      SRA(A0),D1
 	        ENDI
 	        RTS
 
+* Display the string pointed at by A4
+
+PSTRING     EQU         *
+            MOVE.L      D0,-(A7)
+PS1         MOVE.B      (A4)+,D0
+            BEQ.S       PS2
+            BSR         PCHAR
+            BRA         PS1
+PS2         MOVE.L      (A7)+,D0
+            RTS
+
+* Move cursor to start of newline
+
+NEWLINE     EQU         *
+            MOVEM.L     A4,-(A7)
+            LEA         CRLF(PC),A4
+            BSR         PSTRING
+            MOVEM.L     (A7)+,A4
+            RTS
+
+* Print string with newline
+
+HEADING     BSR         NEWLINE
+            BSR         PSTRING
+            BRA         NEWLINE
+
+* Get line of input from user
+
+GETLINE     EQU         *
+            MOVEM.L     A4,-(A7)
+            LEA         PROMPT(PC),A4
+            BSR         PSTRING         Print prompt character
+            MOVEM.L     (A7)+,A4
+GETL1       BSR         GCHAR
+            BRA         GETL1
+
+****************************************************************
+* Strings and Constants in ROM
+*
+BANNER      DC.B    '-- babyMON, a monitor for a 68k-based microcomputer --',0,0
+CRLF        DC.B    CR,LF,0
+PROMPT      DC.B    '> ',0
+
         	END     MAIN
+
 
 
 
