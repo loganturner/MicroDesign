@@ -5,7 +5,6 @@
 * Description      : monitor program for a 68k-based microcomputer
 *-----------------------------------------------------------
 
-SIM         EQU     0   ; 0 = hardware, 1 = simulation
 
 ****************************************************************
 * Assembly Constants:	(Note the offsets to account for no A0)
@@ -45,13 +44,13 @@ MAIN    	JSR     INIT_DUART
 ****************************************************************
 * Initialize DUART
 *
-INIT_DUART  EQU     *
-            IF.B SIM <NE> #00 THEN         when simulating, turn off keyboard echo
+INITDSIM    EQU     *
 	        MOVE.B	#$00,D1
 	        MOVE.B	#12,D0
 	        TRAP		#15
-	        ELSE
+	        RTS
 
+INITDHAR    EQU     *
             LEA	  	    DUART,A0		A0 points to base DUART address
 
 ; Software reset:
@@ -70,8 +69,6 @@ INIT_DUART  EQU     *
       	    MOVE.B	#$07,MR2A(A0)	
 
       	    MOVE.B	#$05,CRA(A0)	enable Tx and Rx
-      	    
-      	    ENDI
       	    RTS
       	    
 ****************************************************************
@@ -79,8 +76,7 @@ INIT_DUART  EQU     *
 
 * Input a single character from port A (polled mode) into D0
 
-GCHAR	    IF.B SIM <EQ> #0 THEN.L
-	
+GCHARHAR    EQU         *
 	        MOVE.L      D1,-(SP)
             LEA         DUART,A0
 Input_poll  MOVE.B      SRA(A0),D1
@@ -88,24 +84,21 @@ Input_poll  MOVE.B      SRA(A0),D1
             BEQ         Input_poll
             MOVE.B      RBA(A0),D0
             MOVE.L      (SP)+, D1
+            BSR         PCHAR       Echo Input
+	        RTS
 
-	        ELSE
-	
+GCHARSIM    EQU         *
 	        MOVE.L	D1, -(SP)	
 	        MOVE.L	#05, D0
 	        TRAP		#15		
 	        MOVE.B	D1, D0
 	        MOVE.L	(SP)+, D1
-	
-	        ENDI
 	        BSR         PCHAR       Echo Input
 	        RTS
 
 * Transmit a single character in D0 from Port A (polled mode)
 
-PCHAR	    IF.B SIM <EQ> #0 THEN.L
-	
-	        MOVE.L      D1,-(SP)
+PCHARHAR    MOVE.L      D1,-(SP)
             LEA         DUART,A0
 Output_poll MOVE.B      SRA(A0),D1
             BTST        #TxRDY,D1
@@ -114,17 +107,14 @@ Output_poll MOVE.B      SRA(A0),D1
             MOVE.L      (SP)+,D1
             RTS
 	
-	        ELSE
-	
+PCHARSIM    EQU         *
 	        MOVE.L	D0, -(SP)	; Task
 	        MOVE.L	D1, -(SP)	;Char to display
 	        MOVE.B	D0, D1	
 	        MOVE.L	#06, D0	
 	        TRAP		#15		
 	        MOVE.L	(SP)+, D1	
-	        MOVE.L	(SP)+, D0	
-	
-	        ENDI
+	        MOVE.L	(SP)+, D0
 	        RTS
 
 * Display the string pointed at by A4
@@ -169,8 +159,12 @@ GETL1       BSR         GCHAR
 BANNER      DC.B    '-- babyMON, a monitor for a 68k-based microcomputer --',0,0
 CRLF        DC.B    CR,LF,0
 PROMPT      DC.B    '> ',0
+GCHAR       EQU     GCHARHAR
+PCHAR       EQU     PCHARHAR
+INIT_DUART  EQU     INITDHAR
 
         	END     MAIN
+
 
 
 
