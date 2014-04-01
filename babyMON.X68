@@ -24,6 +24,7 @@ BAUD		EQU	  	$CC   baud rate value = 19,200 baud
 *
 CR          EQU     $0D     Carriage Return
 LF          EQU     $0A     Line Feed
+ESC         EQU     $1B     Escape
 
 ****************************************************************
 * Main Program
@@ -37,17 +38,58 @@ START   	ORG     $000000
 
         	ORG     $000100        
 MAIN    	JSR     INIT_DUART
-            LEA     BANNER(PC),A4
-            BSR     HEADING
             BRA     MENU
 
 ****************************************************************
 * Menu
 *
 MENU        EQU     *
-            LEA     MENUTEXT(PC),A4
-MENU1       BSR     HEADING
-            BSR     GETNUM
+* Set default option
+* Clear screen
+* Draw banner
+* Draw logo and options
+* Draw carat
+* Wait for character
+* If ENTER, jump to option
+* If arrow, change option
+            MOVE.L  #00,D2              D2 represents which option is selected
+MENU1       BSR     CLRSCREEN
+            BSR     PSTRING
+            LEA     MENUBANNER(PC),A4   Draw menu
+            BSR     PSTRING             Get char
+            LEA     MENUSCREEN(PC),A4
+            BSR     PSTRING
+            LEA     OP1CARAT(PC),A4
+            MOVE.L  #00,(A5)+
+            CMP     D2,D3               Option 1 selected?
+            BEQ     MENU2
+            LEA     OP2CARAT(PC),A4
+            CMP     (A5)+,D2            Option 2 selected?
+            BEQ     MENU2
+            LEA     OP3CARAT(PC),A4
+            CMP     (A5)+,D2            Option 3 selected?
+            BRA     MENU2
+            LEA     OP4CARAT(PC),A4     Option 4 must be selected
+MENU2       BSR     PSTRING
+            BSR     GCHAR
+            BRA     MENU
+
+****************************************************************
+* Modify Registers
+*
+MODREG
+            BRA     MENU
+
+****************************************************************
+* Modify Memory
+*
+MODMEM
+            BRA     MENU
+
+****************************************************************
+* Load S-Record
+*
+LDSREC
             BRA     MENU
 
 ****************************************************************
@@ -171,19 +213,47 @@ GETNUM      EQU         *
             LEA         NUMPROMPT(PC),A4
             BSR         PSTRING         Print prompt character
             MOVEM.L     (A7)+,A4
-GETN1       BSR         GCHAR
+GETNUM      BSR         GCHAR
             CMP.B       #$31,D0
-            BLT         GETN1
+            BLT         GETNUM1
             CMP.B       #$34,D0
-            BGT         GETN1
+            BGT         GETNUM1
             BSR         NEWLINE
             RTS
+
+* Get a navigational character (ESC, ENTER, arrow key) from the user
+
+GETNAV      EQU         *
+            BSR         GCHAR
+            CMP.B       #ESC,D0
+            BEQ         GETNAV1
+            CMP.B       #CR,D0
+            BEQ         GETNAV1
+            BRA         GETNAV
+GETNAV1     RTS
+
+* Clear the screen
+
+CLRSCHAR    EQU         *
+            LEA         CLRSCNESC(PC),A4
+            BSR         PSTRING
+            RTS
+
+CLRSCSIM    EQU         *
+            MOVE.L	D0, -(SP)
+	        MOVE.L	D1, -(SP)
+	        MOVE.L	#11, D0
+	        MOVE.W  #$FF00,D1
+	        TRAP		#15		
+	        MOVE.L	(SP)+,D1	
+	        MOVE.L	(SP)+,D0
+	        RTS
 
 ****************************************************************
 * Strings and Constants in ROM
 *
-BANNER      DC.B    '-- babyMON, a monitor for a 68k-based microcomputer --',0,0
 CRLF        DC.B    CR,LF,0
+CLRSCNESC   DC.B    ESC,'[2J'
 PROMPT      DC.B    '> ',0
 NUMPROMPT   DC.B    '#> ',0
 MENUTEXT    DC.B    'Enter the number of one of the following options:',CR,LF,'1. View or modify a register',CR,LF,'2. View or modify a memory location',CR,LF,'3. Upload an S-record',CR,LF,'4. Jump to a memory location',0,0
@@ -191,11 +261,38 @@ OPNOTIMP1   DC.B    '(Option 1 not yet implemented)',0,0
 OPNOTIMP2   DC.B    '(Option 2 not yet implemented)',0,0
 OPNOTIMP3   DC.B    '(Option 3 not yet implemented)',0,0
 OPNOTIMP4   DC.B    '(Option 4 not yet implemented)',0,0
-GCHAR       EQU     GCHARHAR
-PCHAR       EQU     PCHARHAR
-INIT_DUART  EQU     INITDHAR
+MENUBANNER  DC.B    '                                   MAIN MENU',CR,LF,0,0
+REGBANNER   DC.B    '<[ESC]                             REGISTERS',CR,LF,0,0
+MEMBANNER   DC.B    '<[ESC]                               MEMORY ',CR,LF,0,0
+MENUSCREEN  DC.B    CR,LF
+            DC.B    CR,LF
+            DC.B    CR,LF
+            DC.B    CR,LF
+            DC.B    CR,LF
+            DC.B    CR,LF
+            DC.B    CR,LF
+            DC.B    '                  _           _           __  __  ___  _   _  ',CR,LF
+            DC.B    '                 | |__   __ _| |__  _   _|  \/  |/ _ \| \ | | ',CR,LF
+            DC.B    '                 | ''_ \ / _` | ''_ \| | | | |\/| | | | |  \| | ',CR,LF
+            DC.B    '                 | |_) | (_| | |_) | |_| | |  | | |_| | |\  | ',CR,LF
+            DC.B    '                 |_.__/ \__,_|_.__/ \__, |_|  |_|\___/|_| \_| ',CR,LF
+            DC.B    '                                    |___/         68k monitor ',CR,LF
+            DC.B    CR,LF
+            DC.B    CR,LF
+            DC.B    CR,LF
+            DC.B    CR,LF
+            DC.B    '       Registers       Memory       Load S-Record       Jump to Program ',CR,LF,0,0
+OP1CARAT    DC.B    '           ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
+OP2CARAT    DC.B    '                         ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
+OP3CARAT    DC.B    '                                          ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
+OP4CARAT    DC.B    '                                                               ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
+GCHAR       EQU     GCHARSIM
+PCHAR       EQU     PCHARSIM
+INIT_DUART  EQU     INITDSIM
+CLRSCREEN   EQU     CLRSCSIM
 
-        	END     MAIN
+            END     MAIN
+
 
 
 
