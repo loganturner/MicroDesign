@@ -29,8 +29,8 @@ ESC         EQU     $1B     Escape
 ****************************************************************
 * Main Program
 *
-STACK       EQU     $80800	; MUST BE A VALID RAM LOCATION
-
+STACK       EQU     $80800      RAM location for stack
+PGMSTART    EQU     $81000      RAM location for uploaded S-Record
 
 START   	ORG     $000000
         	DC.L    STACK
@@ -54,42 +54,77 @@ MENU        EQU     *
 * If arrow, change option
             MOVE.L  #00,D2              D2 represents which option is selected
 MENU1       BSR     CLRSCREEN
-            BSR     PSTRING
             LEA     MENUBANNER(PC),A4   Draw menu
-            BSR     PSTRING             Get char
+            BSR     PSTRING
             LEA     MENUSCREEN(PC),A4
             BSR     PSTRING
             LEA     OP1CARAT(PC),A4
-            MOVE.L  #00,(A5)+
-            CMP     D2,D3               Option 1 selected?
+            CMP.B   #00,D2              Option 1 (registers) selected?
             BEQ     MENU2
             LEA     OP2CARAT(PC),A4
-            CMP     (A5)+,D2            Option 2 selected?
+            CMP.B   #01,D2              Option 2 (memory) selected?
             BEQ     MENU2
             LEA     OP3CARAT(PC),A4
-            CMP     (A5)+,D2            Option 3 selected?
-            BRA     MENU2
-            LEA     OP4CARAT(PC),A4     Option 4 must be selected
+            CMP.B   #02,D2              Option 3 (s-record) selected?
+            BEQ     MENU2
+            LEA     OP4CARAT(PC),A4     Option 4 (jump to program) must be selected
 MENU2       BSR     PSTRING
             BSR     GCHAR
+            CMP.B   #CR,D0               Get a character from user
+            BEQ     MENU7               ENTER was hit
+            CMP.B   #'a',D0
+            BNE     MENU3
+            ADD.B   #02,D2              If 'a' was hit, go backwards
+MENU3       CMP.B   #'w',D0
+            BNE     MENU4
+            ADD.B   #02,D2              If 'w' was hit, go backwards
+MENU4       ADD.B   #01,D2              Any other key goes forwards
+            CMP.B   #03,D2
+            BLE     MENU6
+            SUB.B   #04,D2              If option selector is out of range, subtract 4
+MENU6       BRA     MENU1
+MENU7       CMP.B   #00,D2
+            BEQ     MODREG              Branch to option 1 (registers)
+            CMP.B   #01,D2
+            BEQ     MODMEM              Branch to option 2 (memory)
+            CMP.B   #02,D2
+            BEQ     LDSREC              Branch to option 3 (load s-record)
+            CMP.B   #03,D2
+            BNE     MENU                Something went wrong, restart menu
+            BRA     JMPPGM              Option 4, jump to program
             BRA     MENU
 
 ****************************************************************
 * Modify Registers
 *
-MODREG
+MODREG      EQU     *
             BRA     MENU
 
 ****************************************************************
 * Modify Memory
 *
-MODMEM
+MODMEM      EQU     *
             BRA     MENU
 
 ****************************************************************
 * Load S-Record
 *
-LDSREC
+LDSREC      EQU     *
+            BRA     MENU
+****************************************************************
+* Jump to Program
+*
+JMPPGM      EQU     *
+            CMP.B   #$FF,PGMSTART
+            BEQ     JMPPGM1
+            JSR     PGMSTART
+            BRA     MENU
+JMPPGM1     BSR     CLRSCREEN
+            LEA     PGMBANNER(PC),A4    Draw banner
+            BSR     PSTRING
+            LEA     PGMNOTLD(PC),A4     Draw "program not found" screen
+            BSR     PSTRING
+            BSR     GCHAR
             BRA     MENU
 
 ****************************************************************
@@ -137,7 +172,7 @@ Input_poll  MOVE.B      SRA(A0),D1
             MOVE.B      RBA(A0),D0
             MOVE.L      (SP)+,A0
             MOVE.L      (SP)+,D1
-            BSR         PCHAR       Echo Input
+            *BSR         PCHAR       Echo Input
 	        RTS
 
 GCHARSIM    EQU         *
@@ -146,7 +181,7 @@ GCHARSIM    EQU         *
 	        TRAP		#15		
 	        MOVE.B	D1, D0
 	        MOVE.L	(SP)+,D1
-	        BSR         PCHAR       Echo Input
+	        *BSR         PCHAR       Echo Input
 	        RTS
 
 * Transmit a single character in D0 from Port A (polled mode)
@@ -213,7 +248,7 @@ GETNUM      EQU         *
             LEA         NUMPROMPT(PC),A4
             BSR         PSTRING         Print prompt character
             MOVEM.L     (A7)+,A4
-GETNUM      BSR         GCHAR
+GETNUM1     BSR         GCHAR
             CMP.B       #$31,D0
             BLT         GETNUM1
             CMP.B       #$34,D0
@@ -264,6 +299,7 @@ OPNOTIMP4   DC.B    '(Option 4 not yet implemented)',0,0
 MENUBANNER  DC.B    '                                   MAIN MENU',CR,LF,0,0
 REGBANNER   DC.B    '<[ESC]                             REGISTERS',CR,LF,0,0
 MEMBANNER   DC.B    '<[ESC]                               MEMORY ',CR,LF,0,0
+PGMBANNER   DC.B    '<[ESC]                          JUMP TO PROGRAM',CR,LF,0,0
 MENUSCREEN  DC.B    CR,LF
             DC.B    CR,LF
             DC.B    CR,LF
@@ -286,12 +322,14 @@ OP1CARAT    DC.B    '           ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
 OP2CARAT    DC.B    '                         ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
 OP3CARAT    DC.B    '                                          ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
 OP4CARAT    DC.B    '                                                               ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
-GCHAR       EQU     GCHARSIM
-PCHAR       EQU     PCHARSIM
-INIT_DUART  EQU     INITDSIM
-CLRSCREEN   EQU     CLRSCSIM
+PGMNOTLD    DC.B    CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,'                    (No program found at RAM location $81000)',CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,0,0
+GCHAR       EQU     GCHARHAR
+PCHAR       EQU     PCHARHAR
+INIT_DUART  EQU     INITDHAR
+CLRSCREEN   EQU     CLRSCHAR
 
             END     MAIN
+
 
 
 

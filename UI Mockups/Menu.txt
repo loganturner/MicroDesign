@@ -17,7 +17,7 @@
                                     
                                     
        Registers       Memory       Load S-Record       Jump to Program
-           ^
+                                                               ^
 
 
 
