@@ -1,23 +1,24 @@
 <[ESC]                               MEMORY
 
-
-              DATA                  ADDRESS                   OTHER
-         --------------          --------------          --------------         
-
-         D0 = $01020304          A0 = $01020304         > US = $01020304 <
-
-         D1 = $01020304          A1 = $01020304           SS = $01020304
-
-         D2 = $01020304        > A2 = $01020304 <         PC = $01020304
-
-         D3 = $01020304          A3 = $01020304
-
-         D4 = $01020304          A4 = $01020304
-
-       > D5 = $01020304 <        A5 = $01020304
-
-         D6 = $01020304          A6 = $01020304
-
-         D7 = $01020304          A7 = $01020304
-
-
+          ADDRESS                          BYTES
+             $         0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+          -------    -------------------------------------------------
+           8...                             ...
+           800B0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+           800C0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+           800D0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+           800E0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+           800F0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+       -   80100      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+           80110      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+           80120      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+         > 801_0 < >> FF FF _F FF FF FF FF FF FF FF FF FF FF FF FF FF <<
+           80140      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+           80150      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+           80160      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+           80170      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+       -   80180      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+           80190      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+           801A0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+           801B0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+           8...                             ...

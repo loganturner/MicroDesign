@@ -98,12 +98,24 @@ MENU7       CMP.B   #00,D2
 * Modify Registers
 *
 MODREG      EQU     *
+            BSR     CLRSCREEN
+            LEA     REGBANNER(PC),A4    Draw banner
+            BSR     PSTRING
+            LEA     REGSCREEN(PC),A4     Draw mockup modify register screen
+            BSR     PSTRING
+            BSR     GCHAR
             BRA     MENU
 
 ****************************************************************
 * Modify Memory
 *
 MODMEM      EQU     *
+            BSR     CLRSCREEN
+            LEA     MEMBANNER(PC),A4    Draw banner
+            BSR     PSTRING
+            LEA     MEMSCREEN(PC),A4     Draw mockup modify memory screen
+            BSR     PSTRING
+            BSR     GCHAR
             BRA     MENU
 
 ****************************************************************
@@ -296,12 +308,11 @@ OPNOTIMP1   DC.B    '(Option 1 not yet implemented)',0,0
 OPNOTIMP2   DC.B    '(Option 2 not yet implemented)',0,0
 OPNOTIMP3   DC.B    '(Option 3 not yet implemented)',0,0
 OPNOTIMP4   DC.B    '(Option 4 not yet implemented)',0,0
-MENUBANNER  DC.B    '                                   MAIN MENU',CR,LF,0,0
-REGBANNER   DC.B    '<[ESC]                             REGISTERS',CR,LF,0,0
-MEMBANNER   DC.B    '<[ESC]                               MEMORY ',CR,LF,0,0
-PGMBANNER   DC.B    '<[ESC]                          JUMP TO PROGRAM',CR,LF,0,0
+MENUBANNER  DC.B    '                                   MAIN MENU',CR,LF,CR,LF,0,0
+REGBANNER   DC.B    '<[ESC]                             REGISTERS',CR,LF,CR,LF,0,0
+MEMBANNER   DC.B    '<[ESC]                               MEMORY ',CR,LF,CR,LF,0,0
+PGMBANNER   DC.B    '<[ESC]                          JUMP TO PROGRAM',CR,LF,CR,LF,0,0
 MENUSCREEN  DC.B    CR,LF
-            DC.B    CR,LF
             DC.B    CR,LF
             DC.B    CR,LF
             DC.B    CR,LF
@@ -322,11 +333,54 @@ OP1CARAT    DC.B    '           ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
 OP2CARAT    DC.B    '                         ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
 OP3CARAT    DC.B    '                                          ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
 OP4CARAT    DC.B    '                                                               ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
-PGMNOTLD    DC.B    CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,'                    (No program found at RAM location $81000)',CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,0,0
-GCHAR       EQU     GCHARHAR
-PCHAR       EQU     PCHARHAR
-INIT_DUART  EQU     INITDHAR
-CLRSCREEN   EQU     CLRSCHAR
+REGSCREEN   DC.B    CR,LF
+            DC.B    '              DATA                  ADDRESS                  OTHER',CR,LF
+            DC.B    '         --------------          --------------          --------------',CR,LF
+            DC.B    CR,LF
+            DC.B    '         D0 = $01020304          A0 = $01020304        ( US = $01020304 )',CR,LF
+            DC.B    '                                                                      ^',CR,LF
+            DC.B    '         D1 = $01020304          A1 = $01020304          SS = $01020304',CR,LF
+            DC.B    CR,LF
+            DC.B    '         D2 = $01020304        > A2 = $01020304 <        PC = $01020304',CR,LF
+            DC.B    CR,LF
+            DC.B    '         D3 = $01020304          A3 = $01020304',CR,LF
+            DC.B    CR,LF
+            DC.B    '         D4 = $01020304          A4 = $01020304',CR,LF
+            DC.B    CR,LF
+            DC.B    '       ( D5 = $01020304 )        A5 = $01020304',CR,LF
+            DC.B    '                 ^',CR,LF
+            DC.B    '         D6 = $01020304          A6 = $01020304',CR,LF
+            DC.B    CR,LF
+            DC.B    '         D7 = $01020304          A7 = $01020304',CR,LF
+            DC.B    CR,LF
+            DC.B    CR,LF,0,0
+MEMSCREEN   DC.B    '          ADDRESS                          BYTES',CR,LF
+            DC.B    '             $        0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F',CR,LF
+            DC.B    '          -------    -------------------------------------------------',CR,LF
+            DC.B    '           8...                             ...',CR,LF
+            DC.B    '           800B0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '           800C0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '           800D0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '           800E0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '           800F0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '       -   80100      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '           80110      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '           80120      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '         > 801_0 < >> FF FF _F FF FF FF FF FF FF FF FF FF FF FF FF FF <<',CR,LF
+            DC.B    '           80140      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '           80150      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '           80160      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '           80170      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '       -   80180      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '           80190      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '           801A0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '           801B0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
+            DC.B    '           8...                             ...                      ',0,0
+PGMNOTLD    DC.B    CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,'                    (No program found at RAM location $81000.)',CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,0,0
+GCHAR       EQU     GCHARSIM
+PCHAR       EQU     PCHARSIM
+INIT_DUART  EQU     INITDSIM
+CLRSCREEN   EQU     CLRSCSIM
 
             END     MAIN
 
