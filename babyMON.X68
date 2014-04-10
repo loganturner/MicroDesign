@@ -25,6 +25,8 @@ BAUD		EQU	  	$CC   baud rate value = 19,200 baud
 CR          EQU     $0D     Carriage Return
 LF          EQU     $0A     Line Feed
 ESC         EQU     $1B     Escape
+DEL         EQU     $F7     Delete
+BS          EQU     $08     Backspace
 
 ****************************************************************
 * Main Program
@@ -108,7 +110,7 @@ MODREG      EQU     *
 
 ****************************************************************
 * Modify Memory
-*           uses 
+*           
 *
 MODMEM      EQU     *
             * set up default address block, view mode, address digit
@@ -120,12 +122,112 @@ MODMEM      EQU     *
             MOVE.B  #$00,D4
             * D5 is the iterating offset
             * D6 is the iterating block address
-            BSR     drawMemoryScreen
-            BRA     MODMEMCOMM  
+refreshMemory BSR     drawMemoryScreen
+            BSR     editMemoryCommand
+            BRA     refreshMemory
             
-MODMEMCOMM  EQU     *
-            BSR     GCHAR
-            BRA     MENU
+editMemoryCommand  EQU     *
+* Accepts a key of input from the user and performs a command based on it
+* Inputs:   A5 = base address
+*           D3 = view/edit toggle
+*           D4 = selected digit
+* Outputs:  A5 = change base address
+*           D0 = input user character
+*           D3 = change between view/edit
+*           D4 = change selected digit
+            
+            BSR     GCHAR       Get char input from user into D0
+            CMP     #ESC,D0     ESC = branch to menu
+            BEQ     MENU
+            CMP     #CR,D0      CR = toggle view/edit and set selected digit to $00
+            BEQ     toggleViewEdit
+            CMP     #BS,D0     Backspace = decrement selected digit
+            BEQ     decrementSelectedDigit
+            BSR     editDigitIfAscii 0-F = change selected digit of address or RAM and increment selected digit
+            CMP     #'w',D0     w = decrement base address by $10
+            BEQ     decrementBaseAddress
+            CMP     #'s',D0     s = increment base address by $10
+            BEQ     incrementBaseAddress
+            BRA     incrementSelectedDigit anything else (tab, space) = increment selected digit
+
+editDigitIfAscii MOVEM.L D0-D4,-(SP) Store into stack
+            BSR     HexToBinary Convert character into nibble in D1
+            BCS     ediaDone    If carry flag is set, not an ASCII char. Done
+            CMP     #$FF,D3     Edit mode?
+            BEQ     ediaEditMode Skip
+            MOVEM.L D4,-(SP)    Store selected digit temporarily to stack
+            MOVE.L  A5,D2       Work with the base address in D2
+            LSR.L   #4,D2       Remove the bottom nibble of the address
+            BRA     ediaSkip1
+ediaRor     ROR.W   #4,D2       Rotate the base address until correct nibble is showing
+            ADD     #1,D4       Increment the selected digit until it equals 03
+ediaSkip1   CMP     #03,D4
+            BNE     ediaRor
+            AND.B   #$F0,D2 Clear bottom four bits of the base address
+            ADD.B   D1,D2       Add user input value to the base address
+            MOVEM.L (SP)+,D4    Retrieve selected digit from stack
+            BRA     ediaSkip2
+ediaRol     ROL.W   #4,D2       Rotate back
+            ADD     #1,D4
+ediaSkip2   CMP     #03,D4
+            BNE     ediaRol
+            LSL.L   #4,D2       Return useless bottom nibble
+            MOVE.L  D2,A5       Put modified base address back into A5
+            BRA     ediaDone
+ediaEditMode MOVEM.L A5,-(SP)   Store A6 temporarily in the stack
+            ROL.B   #4,D1       Flip the data for the first test
+            MOVE.L  #$0F,D2     D2 holds the mask
+ediaFlip    CMP     #0,D4       Is the selected digit zero?
+            BEQ     ediaFlipDone
+            ROL.B   #4,D1       If not, flip D1 and D2 and subtract 1 from selected digit
+            ROL.B   #4,D2
+            SUB     #1,D4
+            CMP     #0,D4       Is the selected digit zero?
+            BEQ     ediaFlipDone 
+            ROL.B   #4,D1       If not, flip both bytes, subtract 1, and increment the address
+            ROL.B   #4,D2
+            SUB     #1,D4
+            ADD.L   #1,A5       
+            BRA     ediaFlip    Repeat
+ediaFlipDone AND.B   D2,(A5) Clear the nibble
+            ADD.B   D1,(A5) Add new data
+            MOVEM.L (SP)+,A5    Retrieve A6
+ediaDone    MOVEM.L (SP)+,D0-D4 Retrieve from stack
+            RTS
+
+toggleViewEdit CMP  #00,D3      View mode?
+            BEQ     changeToEdit    Skip
+            MOVE.L  #00,D3      Else change to view mode
+            BRA     tveDone
+changeToEdit MOVE.L #$FF,D3     Change to edit mode
+tveDone     MOVE.L  #00,D4      Reset selected digit to 0
+            RTS
+
+decrementSelectedDigit SUB #1,D4 Subtract 1 from selected digit
+            BPL     dsdDone     If positive, skip
+            ADD     #$04,D4     Add $04
+            CMP     #00,D3      If view mode, skip
+            BEQ     dsdDone
+            ADD     #$1C,D4     Add another $1C
+dsdDone     RTS
+
+decrementBaseAddress SUB #$10,A5 Add $10 to base address
+            RTS
+
+incrementBaseAddress ADD #$10,A5 Subtract $10 from base address
+            RTS
+
+incrementSelectedDigit ADD #1,D4 Add 1 to selected digit
+            CMP     #00,D3      If view mode, skip
+            BEQ     isdViewMode
+            CMP     #$20,D4     If less than $20, done
+            BMI     isdDone
+            SUB     #$20,D4     Subtract $20
+            BRA     isdDone     Done
+isdViewMode CMP     #$04,D4     View mode: if less than $04, done
+            BMI     isdDone
+            SUB     #$04,D4     Subtract $04
+isdDone     RTS
 
 drawMemoryScreen    EQU     *
 * Redraws the whole screen for the modify memory feature
@@ -141,9 +243,9 @@ drawMemoryScreen    EQU     *
             BSR     PSTRING
             MOVE.L  A5,D7               Use D7 as the last block address
             MOVE.L  A5,D6               Copy base address to D6 for iteration
-            SUB     #$80,D6             Subtract eight rows
+            SUB.L   #$80,D6             Subtract eight rows
 MMD1        BSR     drawRow             Draw row
-            ADD     #$10,D6             Go to next row
+            ADD.L   #$10,D6             Go to next row
             CMP     D6,D7               Different than base address?
             BNE     MMD1                Do it again
             BSR     drawSpecialRow      Draw base row
@@ -513,14 +615,14 @@ CLRSCSIM    EQU         *
 *-----------------------------------------------------------
         
 DecimalToBinary EQU     *
-        ; This subroutine accepts an ASCII digit in D2
-        ; and stores its binary value in D3. If the digit
+        ; This subroutine accepts an ASCII digit in D0
+        ; and stores its binary value in D1. If the digit
         ; is not between 0-9, D3 holds junk and flag C is set
         
-        MOVE.B      D2,D3   ; copy input into output
-        ADD.B       #$C6,D3 ; test upper boundary
+        MOVE.B      D0,D1   ; copy input into output
+        ADD.B       #$C6,D1 ; test upper boundary
         BCS         END1    ; error if carry
-        SUB.B       #$F6,D3 ; test lower boundary
+        SUB.B       #$F6,D1 ; test lower boundary
 END1    RTS                 ; return from subroutine
 
 *-----------------------------------------------------------
@@ -529,22 +631,22 @@ HexToBinary     EQU     *
         ; This subroutine does the same as above except it
         ; will also accept hex values A-F (a-f).
         
-        MOVE.B      D2,D3   ; copy input into output
-        ADD.B       #$C6,D3 ; test upper decimal boundary
+        MOVE.B      D0,D1   ; copy input into output
+        ADD.B       #$C6,D1 ; test upper decimal boundary
         BCS         CAPALPH ; try capital alpha if carry
-        SUB.B       #$F6,D3 ; test lower decimal boundary
+        SUB.B       #$F6,D1 ; test lower decimal boundary
 END2    RTS                 ; return from subroutine
-CAPALPH ADD.B       #$F3,D3 ; test upper capital alpha boundary
+CAPALPH ADD.B       #$F3,D1 ; test upper capital alpha boundary
         BCS         LOWALPH ; try lowercase alpha if carry
-        SUB.B       #$F0,D3 ; clamp down to 10-15
+        SUB.B       #$F0,D1 ; clamp down to 10-15
         BCS         END2
-        CMP.B       #$0A,D3 ; test lower capital alpha boundary
+        CMP.B       #$0A,D1 ; test lower capital alpha boundary
         BRA         END2
-LOWALPH ADD.B       #$E0,D3 ; test upper lowercase alpha boundary
+LOWALPH ADD.B       #$E0,D1 ; test upper lowercase alpha boundary
         BCS         END2    ; too big - not a hex digit
-        SUB.B       #$F0,D3 ; clamp down to 10-15
+        SUB.B       #$F0,D1 ; clamp down to 10-15
         BCS         END2
-        CMP.B       #$0A,D3 ; test lower lowercase alpha boundary
+        CMP.B       #$0A,D1 ; test lower lowercase alpha boundary
         BRA         END2
 
 *-----------------------------------------------------------
@@ -729,11 +831,11 @@ MEMSCREEN   DC.B    '           800B0      FF FF FF FF FF FF FF FF FF FF FF FF F
             DC.B    '           80190      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
             DC.B    '           801A0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
             DC.B    '           801B0      FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',CR,LF
-            DC.B    '           8...                             ...                      ',0,0
+            DC.B    '            ...                             ...                      ',0,0
 MEMHEADER   DC.B    '          ADDRESS                          BYTES',CR,LF
             DC.B    '             $        0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F',CR,LF
             DC.B    '          -------    -------------------------------------------------',CR,LF
-            DC.B    '           8...                             ...',CR,LF,0,0
+            DC.B    '            ...                             ...',CR,LF,0,0
 TICKSPACE   DC.B    '       -   ',0,0
 NOTICKSPACE DC.B    '           ',0,0
 LEFTCARAT   DC.B    '         > ',0,0
@@ -744,7 +846,7 @@ NORCARAT    DC.B  '   ',0,0
 LDUBCARAT   DC.B    '>> ',0,0
 NOLDUBCARAT   DC.B  '   ',0,0
 RDUBCARAT   DC.B    '<<',0,0
-MEMFOOTER   DC.B    '           8...                             ...                     ',0,0
+MEMFOOTER   DC.B    '            ...                             ...                     ',0,0
 MEMMADDR    DC.B    '800B0',0,0
 MEMMOCKROW  DC.B    'FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',0,0
 PGMNOTLD    DC.B    CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,'                    (No program found at RAM location $81000.)',CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,0,0
@@ -754,6 +856,7 @@ INIT_DUART  EQU     INITDHAR
 CLRSCREEN   EQU     CLRSCHAR
 
             END     MAIN
+
 
 
 
