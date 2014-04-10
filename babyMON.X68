@@ -116,7 +116,7 @@ MODMEM      EQU     *
             MOVE.L  #PGMSTART,A5
             * D3 is View/Edit toggle (00 = View, FF = Edit)
             MOVE.B  #$00,D3
-            * D4 is selected digit (View mode: 00-04, Edit mode: 00-1F)
+            * D4 is selected digit (View mode: 00-03, Edit mode: 00-1F)
             MOVE.B  #$00,D4
             * D5 is the iterating offset
             * D6 is the iterating block address
@@ -163,17 +163,19 @@ drawRow     EQU     *
 * Inputs:   D6 = block address
 
             MOVE.L  D6,-(SP)
+            MOVE.L  A4,-(SP)
             LEA     NOTICKSPACE(PC),A4  Show no tick by default
             CMP.B   #0,D6
             BNE     MMDRNOTICK
             LEA     TICKSPACE(PC),A4    If address block ends in #00, show tick
 MMDRNOTICK  BSR     PSTRING
-            BSR     P5DIGADDR
+            BSR     drawFiveDigitAddress
             LEA     COLUMNSPACE(PC),A4  Display column spacing
             BSR     PSTRING
             BSR     drawRamData
             LEA     CRLF(PC),A4
             BSR     PSTRING
+            MOVE.L  (SP)+,A4
             MOVE.L  (SP)+,D6
             RTS
 
@@ -181,8 +183,48 @@ drawSpecialRow      EQU     *
 * Draws the row of memory that is being viewed or edited currently
 * Inputs:   D3 = view/edit toggle
 *           D4 = selected digit
-            LEA     CRLF(PC),A4
+*           D6 = block address
+            
+            MOVE.L  A4,-(SP)
+            LEA     NOTICKSPACE(PC),A4  Show no tick by default
+            CMP.B   #0,D6               Address end in 00?   
+            BNE     noTick              If not, skip
+            LEA     TICKSPACE(PC),A4    Load tick
+            CMP.B   #00,D3              View mode?
+            BNE     doneWithStupid      If not, tick only
+            LEA     LCARATTICK(PC),A4   Load leftCarat and tick
+            BRA     doneWithStupid      Done
+noTick      CMP.B   #00,D3              No tick and no carat?
+            BNE     doneWithStupid      Done
+            LEA     LEFTCARAT(PC),A4    Else load leftCarat only
+doneWithStupid  BSR     PSTRING         Print
+            CMP.B   #$FF,D3             Edit mode?
+            BEQ     noSpecialAddress    Skip the selectable addressing
+            BSR     drawSpecialFiveDigitAddress Draw special five-digit address
+            BRA     specialAddress      Else do it
+noSpecialAddress BSR     drawFiveDigitAddress    Draw regular five-digit address
+specialAddress LEA     NORCARAT(PC),A4     Show no right carat by default
+            CMP.B   #00,D3              View mode?
+            BNE     noRightCarat        If not, no right carat
+            LEA     RCARAT(PC),A4       Else do show it
+noRightCarat BSR    PSTRING             Print
+            LEA     NOLDUBCARAT(PC),A4  Show no leftDoubleCarat by default
+            CMP.B   #$FF,D3             Edit mode?
+            BNE     noLeftDoubleCarat   If not, no leftDoubleCarat
+            LEA     LDUBCARAT(PC),A4    Else do show it
+noLeftDoubleCarat BSR   PSTRING         Print
+            CMP.B   #00,D3              View mode?
+            BEQ     noSpecialRamData    Skip the selectable RAM data
+            BSR     drawSpecialRamData  Draw selectable row of bytes from RAM
+            BRA     specialRamData      Else do it
+noSpecialRamData BSR     drawRamData         Draw regular row of bytes from RAM
+specialRamData CMP.B   #$FF,D3             Edit mode?
+            BNE     noRightDoubleCarat  If not, no rightDoubleCarat
+            LEA     RDUBCARAT(PC),A4    Else do show it
+            BSR     PSTRING             Print
+noRightDoubleCarat LEA     CRLF(PC),A4
             BSR     PSTRING
+            MOVE.L  (SP)+,A4
             RTS
 
 drawRamData EQU     *
@@ -209,16 +251,82 @@ getData     MOVE.W  (A3),D2             Retrieve two bytes into D2
             MOVEM.L (SP)+,A3            Restore from stack
             RTS
 
-P5DIGADDR   EQU     *
+drawSpecialRamData EQU     *
+* Draws specifically the RAM data for a particular row
+* Inputs:   D6 = block address
+*           D4 = selected digit
+            
+            MOVEM.L A3,-(SP)            Store on stack
+            MOVEM.L D2-D5,-(SP)
+            ; Eight times: retrieve two bytes, print two bytes
+            MOVE.L  D6,A3               A3 is used to retrieve the data
+            MOVE.L  D6,D5               D5 is the last address in this row
+            ADD     #$10,D5             D5 holds D6's value plus $10
+getSpecialData     MOVE.W  (A3),D2             Retrieve two bytes into D2
+            BSR     BinaryToAsciiHex    Convert into ASCII, store in D3
+            CMP     #0,D4               Is D4 negative?
+            BMI     noUnderscore        Skip underscoring
+            CMP     #4,D4               Is D4 = 4 or greater?
+            BPL     noUnderscore        Skip underscoring
+            MOVEM.L D4,-(SP)            Temporarily store D4
+rotateRamLeft ROL.L   #8,D3             Rotate left
+            SUB     #1,D4               Subtract 1 from D4
+            BPL     rotateRamLeft       If negative continue, else repeat
+            MOVE.B  #'_',D3             Replace byte with '_'
+            MOVEM.L (SP),D4             Copy D4 from stack
+rotateRamRight ROR.L   #8,D3            Rotate right
+            SUB     #1,D4               Subtract 1 from D4
+            BPL     rotateRamRight      If negative continue, else repeat
+            MOVEM.L (SP)+,D4            Retrieve D4 from stack
+noUnderscore MOVEM.L D4,-(SP)            Temporarily store D4
+            MOVE.L  #$FF,D4            Put a space when printing
+            BSR     Print4AsciiHex      Print four hex characters
+            MOVEM.L (SP)+,D4            Retrieve D4 from stack
+            ADD     #2,A3               Add 2 to the address
+            SUB     #4,D4               Subtract 4 from D4
+            CMP     A3,D5               Is this too far?
+            BNE     getSpecialData      If not, do it again
+            MOVEM.L (SP)+,D2-D5
+            MOVEM.L (SP)+,A3            Restore from stack
+            RTS
+
+drawFiveDigitAddress   EQU     *
 * Prints a five-digit address
-* Inputs: D6 = address
+* Inputs:   D6 = block address
+            
             MOVEM.L   D0-D4,-(SP)         Store in stack
-            MOVE.L  #'8',D0             Load leading '8' into print input
-            BSR     PCHAR               Print
             MOVE.L  D6,D2               Move address into input for conversion subroutine
+            ROR.L   #4,D2               Rotate last useless nibble out of the way
             BSR     BinaryToAsciiHex    Convert to ASCII, store in D3
             MOVE.L  #0,D4               No space in between when printing
             BSR     Print4AsciiHex      Print
+            MOVE.L  #'0',D0             Load trailing '0' into print input
+            BSR     PCHAR               Print
+            MOVEM.L   (SP)+,D0-D4         Restore from stack
+            RTS
+            
+drawSpecialFiveDigitAddress   EQU     *
+* Prints a five-digit address
+* Inputs:   D6 = block address
+*           D4 = selected digit
+            
+            MOVEM.L   D0-D4,-(SP)         Store in stack
+            MOVE.L  D6,D2               Move address into input for conversion subroutine
+            ROR.L   #4,D2               Rotate last useless nibble out of the way
+            BSR     BinaryToAsciiHex    Convert to ASCII, store in D3
+            MOVEM.L D4,-(SP)            Store D4 on the stack
+rotateLeft  ROL.L   #8,D3               Rotate left
+            SUB     #1,D4               Subtract 1 from D4
+            BPL     rotateLeft          If negative continue, else repeat
+            MOVE.B  #'_',D3             Replace byte with '_'
+            MOVEM.L (SP)+,D4            Restore D4 from stack
+rotateRight ROR.L   #8,D3               Rotate right
+            SUB     #1,D4               Subtract 1 from D4
+            BPL     rotateRight         If negative continue, else repeat
+            MOVE.L  #0,D4               No space in between when printing
+            BSR     Print4AsciiHex      Print
+            MOVE.L  #'0',D0             Load trailing '0' into print input
+            BSR     PCHAR               Print
             MOVEM.L   (SP)+,D0-D4         Restore from stack
             RTS
 
@@ -631,8 +739,10 @@ NOTICKSPACE DC.B    '           ',0,0
 LEFTCARAT   DC.B    '         > ',0,0
 LCARATTICK  DC.B    '       - > ',0,0
 COLUMNSPACE DC.B    '      ',0,0
-RIGHTCARAT  DC.B    ' <    ',0,0
-LDUBCARAT   DC.B    '   >> ',0,0
+RCARAT      DC.B    ' < ',0,0
+NORCARAT    DC.B  '   ',0,0
+LDUBCARAT   DC.B    '>> ',0,0
+NOLDUBCARAT   DC.B  '   ',0,0
 RDUBCARAT   DC.B    '<<',0,0
 MEMFOOTER   DC.B    '           8...                             ...                     ',0,0
 MEMMADDR    DC.B    '800B0',0,0
@@ -644,6 +754,7 @@ INIT_DUART  EQU     INITDHAR
 CLRSCREEN   EQU     CLRSCHAR
 
             END     MAIN
+
 
 
 
