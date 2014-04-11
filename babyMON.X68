@@ -20,7 +20,7 @@ RBA		    EQU   	7	Receive Holding Register
 ACR		    EQU	  	9	Auxiliary control register
 RxRDY		EQU		0	Recieve ready bit position
 TxRDY		EQU		2	Transmit ready bit position
-BAUD		EQU	  	$CC   baud rate value = 19,200 baud
+BAUD		EQU	  	$6C   baud rate value = 115,200 baud
 *
 CR          EQU     $0D     Carriage Return
 LF          EQU     $0A     Line Feed
@@ -137,16 +137,16 @@ editMemoryCommand  EQU     *
 *           D4 = change selected digit
             
             BSR     GCHAR       Get char input from user into D0
-            CMP     #ESC,D0     ESC = branch to menu
+            CMP.B   #ESC,D0     ESC = branch to menu
             BEQ     MENU
-            CMP     #CR,D0      CR = toggle view/edit and set selected digit to $00
+            CMP.B   #CR,D0      CR = toggle view/edit and set selected digit to $00
             BEQ     toggleViewEdit
-            CMP     #BS,D0     Backspace = decrement selected digit
+            CMP.B   #BS,D0     Backspace = decrement selected digit
             BEQ     decrementSelectedDigit
             BSR     editDigitIfAscii 0-F = change selected digit of address or RAM and increment selected digit
-            CMP     #'w',D0     w = decrement base address by $10
+            CMP.B   #'w',D0     w = decrement base address by $10
             BEQ     decrementBaseAddress
-            CMP     #'s',D0     s = increment base address by $10
+            CMP.B   #'s',D0     s = increment base address by $10
             BEQ     incrementBaseAddress
             BRA     incrementSelectedDigit anything else (tab, space) = increment selected digit
 
@@ -768,10 +768,10 @@ OPNOTIMP1   DC.B    '(Option 1 not yet implemented)',0,0
 OPNOTIMP2   DC.B    '(Option 2 not yet implemented)',0,0
 OPNOTIMP3   DC.B    '(Option 3 not yet implemented)',0,0
 OPNOTIMP4   DC.B    '(Option 4 not yet implemented)',0,0
-MENUBANNER  DC.B    '                                   MAIN MENU',CR,LF,CR,LF,0,0
-REGBANNER   DC.B    '<[ESC]                             REGISTERS',CR,LF,CR,LF,0,0
-MEMBANNER   DC.B    '<[ESC]                               MEMORY ',CR,LF,CR,LF,0,0
-PGMBANNER   DC.B    '<[ESC]                          JUMP TO PROGRAM',CR,LF,CR,LF,0,0
+MENUBANNER  DC.B    CR,LF,'                                   MAIN MENU',CR,LF,CR,LF,0,0
+REGBANNER   DC.B    CR,LF,'<[ESC]                             REGISTERS',CR,LF,CR,LF,0,0
+MEMBANNER   DC.B    CR,LF,'<[ESC]                               MEMORY ',CR,LF,CR,LF,0,0
+PGMBANNER   DC.B    CR,LF,'<[ESC]                          JUMP TO PROGRAM',CR,LF,CR,LF,0,0
 MENUSCREEN  DC.B    CR,LF
             DC.B    CR,LF
             DC.B    CR,LF
@@ -850,12 +850,13 @@ MEMFOOTER   DC.B    '            ...                             ...            
 MEMMADDR    DC.B    '800B0',0,0
 MEMMOCKROW  DC.B    'FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',0,0
 PGMNOTLD    DC.B    CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,'                    (No program found at RAM location $81000.)',CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,0,0
-GCHAR       EQU     GCHARHAR
-PCHAR       EQU     PCHARHAR
-INIT_DUART  EQU     INITDHAR
-CLRSCREEN   EQU     CLRSCHAR
+GCHAR       EQU     GCHARSIM
+PCHAR       EQU     PCHARSIM
+INIT_DUART  EQU     INITDSIM
+CLRSCREEN   EQU     CLRSCSIM
 
             END     MAIN
+
 
 
 
