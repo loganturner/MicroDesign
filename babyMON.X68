@@ -39,8 +39,12 @@ START   	ORG     $000000
         	DC.L    STACK
         	DC.L    MAIN
 
+            ORG     $50
+            JMP     PSTRING
+            
         	ORG     $000100        
-MAIN    	JSR     INIT_DUART
+MAIN    	JSR     INIT_DUART  Initialize DUART
+            MOVE.B  #$FF,PGMSTART Set flag for S-Record upload
             BRA     MENU
 
 ****************************************************************
@@ -437,17 +441,127 @@ rotateRight ROR.L   #8,D3               Rotate right
 * Load S-Record
 *
 LDSREC      EQU     *
+            BSR     CLRSCREEN           Clear the screen
+            LEA     SRBANNER(PC),A4     Display banner
+            BSR     PSTRING
+            LEA     PGMSTART,A1         Starting location in A1
+            LEA     SRREADY(PC),A4      Display ready text
+            BSR     PSTRING
+recordLoop  BSR     GCHAR               Get first char
+            BSR     PCHAR               Print it out
+            CMP.B   #'S',D0             Is first character an S?
+            BNE     recordsError        If not, error
+            BSR     GCHAR               Get next char
+            BSR     PCHAR               Print it out
+            CMP.B   #'0',D0             Is it type 0?
+            BEQ     type0record         Handle the type 0
+            CMP.B   #'1',D0             Is it type 1?
+            BEQ     type1record         Handle the type 1
+            CMP.B   #'8',D0             Is it type 8?
+            BEQ     type8record         Handle the type 8
+            BRA     recordsError        Else error
+type0record MOVE.L  #2,D2               
+            BSR     getNibbles          Get byte count
+            SUB     #3,D3               Subtract the checksum and address bytes
+            MOVE.L  D3,D4               Store byte count in D4
+            MOVE.L  #4,D2
+            BSR     getNibbles          Get address
+            MOVE.L  D4,D2
+            BSR     getNibbles          Throw away all data bytes from type 0 record
+            BSR     getNibbles
+            MOVE.L  #2,D2
+            BSR     getNibbles          Throw away last checksum byte
+            BSR     getEndLine          End of record line
+            BRA     recordLoop          Next record
+type1record MOVE.L  #2,D2               
+            BSR     getNibbles          Get byte count
+            SUB     #3,D3               Subtract the checksum and address bytes
+            MOVE.L  D3,D4               Store the byte count in D4
+            MOVE.L  #4,D2
+            BSR     getNibbles          Get address
+            BSR     getAndWriteBytes    Perform the data writing
+            MOVE.L  #2,D2
+            BSR     getNibbles          Throw away last checksum byte
+            BSR     getEndLine          End of record line
+            BRA     recordLoop
+type8record MOVE.L  #2,D2
+            BSR     getNibbles          Get byte count
+            MOVE.L  D3,D2               
+            BSR     getNibbles          Throw away all the data
+            BSR     getNibbles
+            BSR     getEndLine
+recordsDone LEA     SRCOMPLETE(PC),A4   Display success message
+            BSR     PSTRING
+            BRA     recordsEnd
+recordsError LEA    SRERROR(PC),A4      Display error message
+            BSR     PSTRING
+recordsEnd  BSR     GCHAR               Wait for user aproval
             BRA     MENU
+
+getNibbles  EQU     *
+* Collects between 0 and 8 nibbles from the input, returning binary numbers
+* Inputs:   D2 = # of nibbles to get
+* Outputs:  D3 = data stored in a longword
+            MOVEM.L     D0-D2,-(SP)     Store on stack
+            MOVE.L      #0,D3           Clear D3
+nibbleLoop  CMP.B       #0,D2           Out of nibbles?
+            BEQ         nibblesDone     Done
+            ROL.L       #4,D3           Rotate result up by one nibble
+            BSR         GCHAR           Get next char
+            BSR         PCHAR           Print it
+            BSR         HexToBinary     Convert to binary number
+            BCS         recordsError    If it cannot, error
+            ADD.B       D1,D3           Add lower nibble
+            SUB         #1,D2           Decrement the number of nibbles left
+            BRA         nibbleLoop      Repeat
+nibblesDone MOVEM.L     (SP)+,D0-D2     Retrieve from stack
+            RTS
+
+getAndWriteBytes EQU *
+* Gets bytes from input and writes them to the correct location in memory
+* Inputs:   A1 = base location
+*           D3 = location offset for this record line
+*           D4 = number of bytes to write
+            MOVEM.L     A1,-(SP)        Store on stack
+            MOVEM.L     D4,-(SP)
+            ADD.L       D3,A1           Add offset to base location
+writeLoop   CMP.B       #0,D4           No bytes left to write?
+            BEQ         writingDone     Done
+            MOVE.L      #2,D2
+            BSR         getNibbles      Get a byte from input
+            MOVE.B      D3,(A1)+        Write it to memory and increment address
+            SUB         #1,D4           Decrement bytes left
+            BRA         writeLoop
+writingDone MOVEM.L     (SP)+,D4
+            MOVEM.L     (SP)+,A1        Restore from stack
+            RTS
+
+getEndLine  EQU     *
+* Makes sure the line ends properly
+* Inputs:
+* Outputs:
+            MOVEM.L     D0,-(SP)        Store on stack
+            BSR         GCHAR           Get a character
+            BSR         PCHAR           Print it
+            CMP.B       #CR,D0          Is it a carriage return?
+            BNE         recordsError    If not, error
+            BSR         GCHAR           Get the second character
+            BSR         PCHAR           Print it
+            CMP.B       #LF,D0          Is it a line feed?
+            BNE         recordsError    If not, error
+            MOVEM.L     (SP)+,D0        Return from stack
+            RTS
+
 ****************************************************************
 * Jump to Program
 *
 JMPPGM      EQU     *
+            BSR     CLRSCREEN
             CMP.B   #$FF,PGMSTART
             BEQ     JMPPGM1
             JSR     PGMSTART
             BRA     MENU
-JMPPGM1     BSR     CLRSCREEN
-            LEA     PGMBANNER(PC),A4    Draw banner
+JMPPGM1     LEA     PGMBANNER(PC),A4    Draw banner
             BSR     PSTRING
             LEA     PGMNOTLD(PC),A4     Draw "program not found" screen
             BSR     PSTRING
@@ -774,6 +888,7 @@ MENUBANNER  DC.B    CR,LF,'                                   MAIN MENU',CR,LF,C
 REGBANNER   DC.B    CR,LF,'<[ESC]                             REGISTERS',CR,LF,CR,LF,0,0
 MEMBANNER   DC.B    CR,LF,'<[ESC]                               MEMORY ',CR,LF,CR,LF,0,0
 PGMBANNER   DC.B    CR,LF,'<[ESC]                          JUMP TO PROGRAM',CR,LF,CR,LF,0,0
+SRBANNER    DC.B    CR,LF,'<[ESC]                           LOAD S-RECORD',CR,LF,CR,LF,0,0
 MENUSCREEN  DC.B    CR,LF
             DC.B    CR,LF
             DC.B    CR,LF
@@ -852,12 +967,17 @@ MEMFOOTER   DC.B    '            ...                             ...            
 MEMMADDR    DC.B    '800B0',0,0
 MEMMOCKROW  DC.B    'FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',0,0
 PGMNOTLD    DC.B    CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,'                    (No program found at RAM location $81000.)',CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,0,0
-GCHAR       EQU     GCHARHAR
-PCHAR       EQU     PCHARHAR
-INIT_DUART  EQU     INITDHAR
-CLRSCREEN   EQU     CLRSCHAR
+SRREADY     DC.B    CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,'                               (Ready for S-Record)',CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,0,0
+SRLOADING   DC.B    '                                    Loading...',CR,LF,CR,LF,CR,LF,CR,LF,0,0
+SRCOMPLETE  DC.B    '                                    Complete!',CR,LF,0,0
+SRERROR     DC.B    CR,LF,'                           Oops. Something went wrong.',CR,LF,0,0
+GCHAR       EQU     GCHARSIM
+PCHAR       EQU     PCHARSIM
+INIT_DUART  EQU     INITDSIM
+CLRSCREEN   EQU     CLRSCSIM
 
             END     MAIN
+
 
 
 
