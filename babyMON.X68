@@ -20,7 +20,8 @@ RBA		    EQU   	7	Receive Holding Register
 ACR		    EQU	  	9	Auxiliary control register
 RxRDY		EQU		0	Recieve ready bit position
 TxRDY		EQU		2	Transmit ready bit position
-BAUD		EQU	  	$6C   baud rate value = 115,200 baud
+TestBRG     EQU     5   Test BRG register
+BAUD		EQU	  	$66   baud rate value = 115,200 baud
 *
 CR          EQU     $0D     Carriage Return
 LF          EQU     $0A     Line Feed
@@ -471,6 +472,7 @@ INITDHAR    EQU     *
 		    MOVE.B	    #$10,CRA(A0)	Reset MRA pointer
 
 ; Initialization:
+            CMP.B       #0,TestBRG(A0)  Toggle BRG test mode
             MOVE.B  	#$80,ACR(A0)	selects baud rate set 2
             MOVE.B  	#BAUD,CSRA(A0)  	set 19.2k baud Rx/Tx
       	    MOVE.B  	#$13,MR1A(A0)   	8-bits, no parity, 1 stop bit
@@ -850,10 +852,10 @@ MEMFOOTER   DC.B    '            ...                             ...            
 MEMMADDR    DC.B    '800B0',0,0
 MEMMOCKROW  DC.B    'FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF',0,0
 PGMNOTLD    DC.B    CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,'                    (No program found at RAM location $81000.)',CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,CR,LF,0,0
-GCHAR       EQU     GCHARSIM
-PCHAR       EQU     PCHARSIM
-INIT_DUART  EQU     INITDSIM
-CLRSCREEN   EQU     CLRSCSIM
+GCHAR       EQU     GCHARHAR
+PCHAR       EQU     PCHARHAR
+INIT_DUART  EQU     INITDHAR
+CLRSCREEN   EQU     CLRSCHAR
 
             END     MAIN
 
