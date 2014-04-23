@@ -34,6 +34,7 @@ BS          EQU     $08     Backspace
 *
 STACK       EQU     $80800      RAM location for stack
 PGMSTART    EQU     $81000      RAM location for uploaded S-Record
+REGISTER_HOLDING_MEMORY EQU $80900 RAM location for holding modified register values
 
 START   	ORG     $000000
         	DC.L    STACK
@@ -105,27 +106,68 @@ MENU7       CMP.B   #00,D2
 * Modify Registers
 *
 MODREG      EQU     *
-            ; Load register values into reserved memory locations
+            MOVE.L  A0,$80B80           Load register values into reserved memory locations
+            MOVE.L  A1,$80B84
+            MOVE.L  A2,$80B88
+            MOVE.L  A3,$80B8C
+            MOVE.L  A4,$80B90
+            MOVE.L  A5,$80B94
+            MOVE.L  A6,$80B98
+            MOVE.L  A7,$80B9C
+            MOVE.L  D0,$80C40
+            MOVE.L  D1,$80C44
+            MOVE.L  D2,$80C48
+            MOVE.L  D3,$80C4C
+            MOVE.L  D4,$80C50
+            MOVE.L  D5,$80C54
+            MOVE.L  D6,$80C58
+            MOVE.L  D7,$80C5C
             BSR     CLRSCREEN
             LEA     REGBANNER(PC),A4    Draw banner
             BSR     PSTRING
 registerLoop LEA    REGINSTRUCT(PC),A4  Display instructions
             BSR     PSTRING
+            MOVE.L  #REGISTER_HOLDING_MEMORY,A2 Load the base holding address
             MOVE.L  #2,D2               Pass argument to subroutine: get 2 nibbles
             BSR     getRegisterNibbles  Get two hex digits from the user (or ESC to end)
-            ; Display value at corresponding location
-            ; Get data from user (or ENTER to cancel or ESC to end)
-            ; Write data to that memory location
-            ; Confirm entered value or cancellation
-            LEA     CRLF(PC),A4         Print a few new lines
-            BSR     PSTRING
-            BSR     PSTRING
+            LEA     REGCOLON(PC),A4
+            BSR     PSTRING             Print the colon
+            LSL     #2,D3               Shift the register name by two bits
+            ADD.L   D3,A2               Add the register name to the base address to get the register's holding address
+            MOVE.W  (A2),D2             Copy the top word at that location into a data register
+            BSR     BinaryToAsciiHex    Convert data into ASCII hex characters
+            MOVE.L  #0,D4               Pass argument: 0 for no space in between words
+            BSR     Print4AsciiHex      Display value at corresponding location
+            MOVE.L  (A2),D2             Copy the whole word into a data register
+            BSR     BinaryToAsciiHex    Convert
+            BSR     Print4AsciiHex      Print
+            LEA     REGPROMPT(PC),A4    Load user prompt
+            BSR     PSTRING             Print user prompt
+            MOVE.L  #8,D2               Pass argument to subroutine: get 8 nibbles
+            BSR     getRegisterNibbles  Get data from user (or ENTER to cancel or ESC to end)
+            MOVE.L  D3,(A2)             Write data to that memory location
+            LEA     REGCONFIRM(PC),A4
+            BSR     PSTRING             Confirm entered value or cancellation
             BRA     registerLoop        Repeat loop
 registerError LEA   REGERROR(PC),A4     Display error message
             BSR     PSTRING
             BRA     registerLoop        Loop back
-registerEnd BSR     GCHAR
-            ; Write reserved memory locations back into registers
+registerEnd MOVE.L  $80B80,A0           Write reserved memory locations back into registers
+            MOVE.L  $80B84,A1
+            MOVE.L  $80B88,A2
+            MOVE.L  $80B8C,A3
+            MOVE.L  $80B90,A4
+            MOVE.L  $80B94,A5
+            MOVE.L  $80B98,A6
+            MOVE.L  $80B9C,A7
+            MOVE.L  $80C40,D0
+            MOVE.L  $80C44,D1
+            MOVE.L  $80C48,D2
+            MOVE.L  $80C4C,D3
+            MOVE.L  $80C50,D4
+            MOVE.L  $80C54,D5
+            MOVE.L  $80C58,D6
+            MOVE.L  $80C5C,D7
             BRA     MENU
             
 getRegisterNibbles  EQU     *
@@ -138,9 +180,9 @@ nibbleLoop2 CMP.B       #0,D2           Out of nibbles?
             BEQ         nibblesDone2    Done
             ROL.L       #4,D3           Rotate result up by one nibble
             BSR         GCHAR           Get next char
-            CMP.B       #ESC,D1         Compare with ESC
+            CMP.B       #ESC,D0         Compare with ESC
             BEQ         nibblesEsc      If so, escape
-            CMP.B       #CR,D1          Compare with CR
+            CMP.B       #CR,D0          Compare with CR
             BEQ         nibblesCr       If so, loop back
             BSR         PCHAR           Print it
             BSR         HexToBinary     Convert to binary number
@@ -954,10 +996,11 @@ OP1CARAT    DC.B    '           ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
 OP2CARAT    DC.B    '                         ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
 OP3CARAT    DC.B    '                                          ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
 OP4CARAT    DC.B    '                                                               ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
-REGINSTRUCT DC.B    'Enter a register''s name to view its contents.',CR,LF,'Then type hex digits to overwrite, or press enter to cancel.',CR,LF,'> ',0,0
-REGCONFIRM  DC.B    'Register successfully modified.',CR,LF,0,0
+REGINSTRUCT DC.B    CR,LF,CR,LF,'Enter a register''s name to view its contents.',CR,LF,'Then type hex digits to overwrite, or press enter to cancel.',CR,LF,'> ',0,0
+REGCONFIRM  DC.B    CR,LF,'Register successfully modified.',CR,LF,0,0
 REGPROMPT   DC.B    ' > ',0,0
-REGERROR    DC.B    CR,LF,'Oops. That''s not a hex digit.',CR,LF,CR,LF,0,0
+REGERROR    DC.B    CR,LF,'Oops. That''s not a hex digit.',0,0
+REGCOLON    DC.B    ': ',0,0
 REGSCREEN   DC.B    CR,LF
             DC.B    '              DATA                  ADDRESS                  OTHER',CR,LF
             DC.B    '         --------------          --------------          --------------',CR,LF
