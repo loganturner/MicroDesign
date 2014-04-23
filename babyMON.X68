@@ -105,13 +105,57 @@ MENU7       CMP.B   #00,D2
 * Modify Registers
 *
 MODREG      EQU     *
+            ; Load register values into reserved memory locations
             BSR     CLRSCREEN
             LEA     REGBANNER(PC),A4    Draw banner
             BSR     PSTRING
-            LEA     REGSCREEN(PC),A4     Draw mockup modify register screen
+registerLoop LEA    REGINSTRUCT(PC),A4  Display instructions
             BSR     PSTRING
-            BSR     GCHAR
+            MOVE.L  #2,D2               Pass argument to subroutine: get 2 nibbles
+            BSR     getRegisterNibbles  Get two hex digits from the user (or ESC to end)
+            ; Display value at corresponding location
+            ; Get data from user (or ENTER to cancel or ESC to end)
+            ; Write data to that memory location
+            ; Confirm entered value or cancellation
+            LEA     CRLF(PC),A4         Print a few new lines
+            BSR     PSTRING
+            BSR     PSTRING
+            BRA     registerLoop        Repeat loop
+registerError LEA   REGERROR(PC),A4     Display error message
+            BSR     PSTRING
+            BRA     registerLoop        Loop back
+registerEnd BSR     GCHAR
+            ; Write reserved memory locations back into registers
             BRA     MENU
+            
+getRegisterNibbles  EQU     *
+* Collects between 0 and 8 nibbles from the input, returning binary numbers
+* Inputs:   D2 = # of nibbles to get
+* Outputs:  D3 = data stored in a longword
+            MOVEM.L     D0-D2,-(SP)     Store on stack
+            MOVE.L      #0,D3           Clear D3
+nibbleLoop2 CMP.B       #0,D2           Out of nibbles?
+            BEQ         nibblesDone2    Done
+            ROL.L       #4,D3           Rotate result up by one nibble
+            BSR         GCHAR           Get next char
+            CMP.B       #ESC,D1         Compare with ESC
+            BEQ         nibblesEsc      If so, escape
+            CMP.B       #CR,D1          Compare with CR
+            BEQ         nibblesCr       If so, loop back
+            BSR         PCHAR           Print it
+            BSR         HexToBinary     Convert to binary number
+            BCS         nibblesError2   If it cannot, error
+            ADD.B       D1,D3           Add lower nibble
+            SUB         #1,D2           Decrement the number of nibbles left
+            BRA         nibbleLoop2     Repeat
+nibblesEsc  MOVEM.L     (SP)+,D0-D2     Retrieve from stack
+            BRA         registerEnd     Finish the register modify process
+nibblesCr   MOVEM.L     (SP)+,D0-D2     Retrieve from stack
+            BRA         registerLoop    Loop back to the beginning
+nibblesError2 MOVEM.L   (SP)+,D0-D2     Retrieve from stack
+            BRA         registerError
+nibblesDone2 MOVEM.L    (SP)+,D0-D2     Retrieve from stack
+            RTS
 
 ****************************************************************
 * Modify Memory
@@ -910,6 +954,10 @@ OP1CARAT    DC.B    '           ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
 OP2CARAT    DC.B    '                         ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
 OP3CARAT    DC.B    '                                          ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
 OP4CARAT    DC.B    '                                                               ^',CR,LF,CR,LF,CR,LF,CR,LF,0,0
+REGINSTRUCT DC.B    'Enter a register''s name to view its contents.',CR,LF,'Then type hex digits to overwrite, or press enter to cancel.',CR,LF,'> ',0,0
+REGCONFIRM  DC.B    'Register successfully modified.',CR,LF,0,0
+REGPROMPT   DC.B    ' > ',0,0
+REGERROR    DC.B    CR,LF,'Oops. That''s not a hex digit.',CR,LF,CR,LF,0,0
 REGSCREEN   DC.B    CR,LF
             DC.B    '              DATA                  ADDRESS                  OTHER',CR,LF
             DC.B    '         --------------          --------------          --------------',CR,LF
@@ -977,6 +1025,7 @@ INIT_DUART  EQU     INITDSIM
 CLRSCREEN   EQU     CLRSCSIM
 
             END     MAIN
+
 
 
 
