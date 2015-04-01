@@ -244,15 +244,15 @@ begin
    -- Output values
    LED <= (bootingUpVector and loadingPattern) or (not(bootingUpVector) and pingPattern);
    TestPointCustom <= '0';
-   HeaderCustom <= ( 1 => Clock,
-                     2 => AddressHigh(20),
-                     3 => AddressHigh(19),
-                     4 => MpuReadWrite,
-                     5 => AddressStrobe,
-                     6 => UpperDataStrobe or LowerDataStrobe,
-                     7 => DataTransferAcknowledge
+   HeaderCustom <= ( 1 => DuartReset,
+                     2 => Reset,
+                     3 => MpuReadWrite,
+                     4 => AddressHigh(20),
+                     5 => AddressHigh(19),
+                     6 => AddressLow(2),
+                     7 => AddressLow(1)
                      );
-   Interrupt <= (2 => '0', 1 => '0', 0 => DuartInterruptRequest); -- lowest bit is asserted when DUART need attention
+   Interrupt <= "000"; -- lowest bit is asserted when DUART need attention
    BusError <= '0'; -- tried to access an unused address
    AutoVector <= '0';
    Reset <= not(ButtonReset) or bootingUp;
@@ -260,7 +260,7 @@ begin
    Mode <= '1';
    BusRequest <= '0';
    BusGrantAcknowledge <= '0';
-   DataTransferAcknowledge <= addressReady and (UpperDataStrobe or LowerDataStrobe);
+   DataTransferAcknowledge <= (addressReady and (UpperDataStrobe or LowerDataStrobe) and not(DuartChipSelect)) or (DuartChipSelect and DuartDataTransferAcknowledge);
    LedDebug <= not(ButtonDebug);
    RamUpperWriteEnable <= MpuReadWrite and RamUpperChipEnable;
    RamUpperOutputEnable <= not(MpuReadWrite) and RamUpperChipEnable;
@@ -270,10 +270,10 @@ begin
    RamLowerChipEnable <= not(AddressHigh(20)) and AddressHigh(19) and LowerDataStrobe;
    RomUpperChipEnable <= not(AddressHigh(20)) and not(AddressHigh(19)) and UpperDataStrobe and AddressStrobe;
    RomLowerChipEnable <= not(AddressHigh(20)) and not(AddressHigh(19)) and LowerDataStrobe and AddressStrobe;
-   DuartReadWrite <= '0';
+   DuartReadWrite <= MpuReadWrite and DuartChipSelect;
    DuartInterruptAcknowledge <= '0';
-   DuartChipSelect <= AddressHigh(20) and not(AddressHigh(19));
-   DuartReset <= '0';
+   DuartChipSelect <= AddressHigh(20) and not(AddressHigh(19)) and AddressStrobe;
+   DuartReset <= not(ButtonReset) or bootingUp;
 
 end Behavioral;
 

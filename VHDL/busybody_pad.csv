@@ -1,0 +1,113 @@
+Release 8.1i - Fit P.49d
+Copyright(c) 1995-2003 Xilinx Inc. All rights reserved
+
+ 3-24-2014  6:53PM
+
+NOTE: This file is designed to be imported into a spreadsheet program
+such as Microsoft Excel for viewing, printing and sorting. The comma ','
+character is used as the data field separator.
+This file is also designed to support parsing.
+
+Input file:  busybody.ngd
+output file: busybody_pad.csv
+Part type:   xc95108
+Speed grade: -7
+Package:     pc84
+
+Pinout by Pin Number:
+
+-----,-----,-----,-----,-----,-----,-----,-----,-----,-----,
+Pin Number,Signal Name,Pin Usage,Pin Name,Direction,IO Standard,IO Bank Number,{blank},Slew Rate,Termination,{blank},Voltage,Constraint,
+P1,LED<7>,O,I/O,OUTPUT,,,,,,,,,
+P2,LED<8>,O,I/O,OUTPUT,,,,,,,,,
+P3,LED<9>,O,I/O,OUTPUT,,,,,,,,,
+P4,TestPointCustom,O,I/O,OUTPUT,,,,,,,,,
+P5,HeaderCustom<7>,O,I/O,OUTPUT,,,,,,,,,
+P6,HeaderCustom<6>,O,I/O,OUTPUT,,,,,,,,,
+P7,HeaderCustom<5>,O,I/O,OUTPUT,,,,,,,,,
+P8,GND,,GND,,,,,,,,,,
+P9,HeaderCustom<4>,O,I/O/GCK1,OUTPUT,,,,,,,,,
+P10,HeaderCustom<3>,O,I/O/GCK2,OUTPUT,,,,,,,,,
+P11,HeaderCustom<2>,O,I/O,OUTPUT,,,,,,,,,
+P12,HeaderCustom<1>,O,I/O/GCK3,OUTPUT,,,,,,,,,
+P13,TIE,,I/O,,,,,,,,,,
+P14,TIE,,I/O,,,,,,,,,,
+P15,TIE,,I/O,,,,,,,,,,
+P16,GND,,GND,,,,,,,,,,
+P17,AddressHigh<20>,I,I/O,INPUT,,,,,,,,,
+P18,AddressHigh<19>,I,I/O,INPUT,,,,,,,,,
+P19,TIE,,I/O,,,,,,,,,,
+P20,TIE,,I/O,,,,,,,,,,
+P21,TIE,,I/O,,,,,,,,,,
+P22,VCC,,VCCIO,,,,,,,,,,
+P23,TIE,,I/O,,,,,,,,,,
+P24,TIE,,I/O,,,,,,,,,,
+P25,AddressLow<2>,I,I/O,INPUT,,,,,,,,,
+P26,AddressLow<1>,I,I/O,INPUT,,,,,,,,,
+P27,GND,,GND,,,,,,,,,,
+P28,TDI,,TDI,,,,,,,,,,
+P29,TMS,,TMS,,,,,,,,,,
+P30,TCK,,TCK,,,,,,,,,,
+P31,TIE,,I/O,,,,,,,,,,
+P32,TIE,,I/O,,,,,,,,,,
+P33,TIE,,I/O,,,,,,,,,,
+P34,InterruptN<0>,O,I/O,OUTPUT,,,,,,,,,
+P35,InterruptN<1>,O,I/O,OUTPUT,,,,,,,,,
+P36,InterruptN<2>,O,I/O,OUTPUT,,,,,,,,,
+P37,BusErrorN,O,I/O,OUTPUT,,,,,,,,,
+P38,VCC,,VCCINT,,,,,,,,,,
+P39,AutoVectorN,O,I/O,OUTPUT,,,,,,,,,
+P40,ResetN,O,I/O,OUTPUT,,,,,,,,,
+P41,HaltN,O,I/O,OUTPUT,,,,,,,,,
+P42,GND,,GND,,,,,,,,,,
+P43,Mode,O,I/O,OUTPUT,,,,,,,,,
+P44,Clock,I,I/O,INPUT,,,,,,,,,
+P45,BusRequestN,O,I/O,OUTPUT,,,,,,,,,
+P46,BusGrantAcknowledgeN,O,I/O,OUTPUT,,,,,,,,,
+P47,TIE,,I/O,,,,,,,,,,
+P48,DataTransferAcknowledgeN,O,I/O,OUTPUT,,,,,,,,,
+P49,GND,,GND,,,,,,,,,,
+P50,MpuReadWriteN,I,I/O,INPUT,,,,,,,,,
+P51,LowerDataStrobeN,I,I/O,INPUT,,,,,,,,,
+P52,UpperDataStrobeN,I,I/O,INPUT,,,,,,,,,
+P53,AddressStrobeN,I,I/O,INPUT,,,,,,,,,
+P54,LedDebug,O,I/O,OUTPUT,,,,,,,,,
+P55,ButtonDebug,I,I/O,INPUT,,,,,,,,,
+P56,ButtonReset,I,I/O,INPUT,,,,,,,,,
+P57,TIE,,I/O,,,,,,,,,,
+P58,TIE,,I/O,,,,,,,,,,
+P59,TDO,,TDO,,,,,,,,,,
+P60,GND,,GND,,,,,,,,,,
+P61,RamUpperWriteEnableN,O,I/O,OUTPUT,,,,,,,,,
+P62,RamUpperOutputEnableN,O,I/O,OUTPUT,,,,,,,,,
+P63,RamUpperChipEnableN,O,I/O,OUTPUT,,,,,,,,,
+P64,VCC,,VCCIO,,,,,,,,,,
+P65,RamLowerWriteEnableN,O,I/O,OUTPUT,,,,,,,,,
+P66,RamLowerOutputEnableN,O,I/O,OUTPUT,,,,,,,,,
+P67,RamLowerChipEnableN,O,I/O,OUTPUT,,,,,,,,,
+P68,RomUpperChipEnableN,O,I/O,OUTPUT,,,,,,,,,
+P69,RomLowerChipEnableN,O,I/O,OUTPUT,,,,,,,,,
+P70,TIE,,I/O,,,,,,,,,,
+P71,DuartDataTransferAcknowledgeN,I,I/O,INPUT,,,,,,,,,
+P72,DuartReadWriteN,O,I/O,OUTPUT,,,,,,,,,
+P73,VCC,,VCCINT,,,,,,,,,,
+P74,DuartInterruptAcknowledgeN,O,I/O/GSR,OUTPUT,,,,,,,,,
+P75,DuartChipSelectN,O,I/O,OUTPUT,,,,,,,,,
+P76,DuartResetN,O,I/O/GTS1,OUTPUT,,,,,,,,,
+P77,TIE,,I/O/GTS2,,,,,,,,,,
+P78,VCC,,VCCINT,,,,,,,,,,
+P79,LED<1>,O,I/O,OUTPUT,,,,,,,,,
+P80,LED<2>,O,I/O,OUTPUT,,,,,,,,,
+P81,LED<3>,O,I/O,OUTPUT,,,,,,,,,
+P82,LED<4>,O,I/O,OUTPUT,,,,,,,,,
+P83,LED<5>,O,I/O,OUTPUT,,,,,,,,,
+P84,LED<6>,O,I/O,OUTPUT,,,,,,,,,
+
+To preserve the pinout above for future design iterations in
+Project Navigator simply execute the (Lock Pins) process
+located under the (Implement Design) process in a toolbox named
+(Optional Implementation Tools) or invoke PIN2UCF from the
+command line. The location constraints will be written into your
+specified UCF file
+
+
