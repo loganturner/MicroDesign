@@ -2,7 +2,7 @@
 
 This was my final project in an undergraduate microcomputer design course. It's not a great design, but it functions. Maybe it can inspire others working on something similar.
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/sTxJckaRQrM" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+[![YouTube video of working computer](https://img.youtube.com/vi/sTxJckaRQrM/0.jpg)](https://www.youtube.com/watch?v=sTxJckaRQrM)
 
 ## Tools
 
